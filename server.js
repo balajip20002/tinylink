@@ -12,7 +12,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Security middlewares
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false   // FIX: allow inline JS
+}));
+
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
