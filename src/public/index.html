@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TinyLink Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 900px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h1 { margin-bottom: 10px; }
+
+    input, button {
+      padding: 8px;
+      margin: 4px 0;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+
+    .ellipsis {
+      max-width: 300px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    .msg {
+      font-size: 14px;
+      color: #444;
+      margin-left: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>TinyLink — Dashboard</h1>
+
+  <form id="createForm">
+    <label>
+      URL:
+      <input id="urlInput" type="url" placeholder="https://example.com/something" required style="width:60%">
+    </label>
+    <br>
+
+    <label>
+      Custom Code (optional):
+      <input id="codeInput" type="text" placeholder="6–8 chars">
+    </label>
+    <br>
+
+    <button type="submit">Create Short Link</button>
+    <span id="msg" class="msg"></span>
+  </form>
+
+  <br>
+
+  <input id="search" placeholder="Search code or URL…" style="width:60%">
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Code</th>
+        <th>Target URL</th>
+        <th>Clicks</th>
+        <th>Last Clicked</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="linksBody"></tbody>
+  </table>
+
+  <script>
+    const api = "/api/links";
+    const tableBody = document.getElementById("linksBody");
+
+    async function fetchLinks() {
+      const res = await fetch(api);
+      const data = await res.json();
+      renderTable(data);
+    }
+
+    function renderTable(rows) {
+      tableBody.innerHTML = "";
+
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+
+        tr.innerHTML = `
+          <td><a href="/${r.code}" target="_blank">${r.code}</a></td>
+          <td><span class="ellipsis" title="${r.url}">${r.url}</span></td>
+          <td>${r.clicks}</td>
+          <td>${r.last_clicked ? new Date(r.last_clicked).toLocaleString() : '-'}</td>
+          <td>
+            <button data-code="${r.code}" class="delBtn">Delete</button>
+            <button data-code="${r.code}" class="copyBtn">Copy</button>
+            <a href="/code/${r.code}">Stats</a>
+          </td>
+        `;
+
+        tableBody.appendChild(tr);
+      });
+    }
+
+    // Create link
+    document.getElementById("createForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const url = urlInput.value.trim();
+      const code = codeInput.value.trim() || undefined;
+      msg.textContent = "Creating…";
+
+      const res = await fetch(api, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, code })
+      });
+
+      if (res.status === 201) {
+        msg.textContent = "Created!";
+        urlInput.value = "";
+        codeInput.value = "";
+        fetchLinks();
+      } else {
+        const err = await res.json();
+        msg.textContent = err.error || "Error";
+      }
+    });
+
+    // Actions (Delete & Copy)
+    tableBody.addEventListener("click", async (e) => {
+      if (e.target.classList.contains("delBtn")) {
+        const code = e.target.dataset.code;
+        if (confirm("Delete " + code + "?")) {
+          await fetch(api + "/" + code, { method: "DELETE" });
+          fetchLinks();
+        }
+      }
+
+      if (e.target.classList.contains("copyBtn")) {
+        const code = e.target.dataset.code;
+        const shortUrl = window.location.origin + "/" + code;
+        await navigator.clipboard.writeText(shortUrl);
+        alert("Copied: " + shortUrl);
+      }
+    });
+
+    // Search
+    document.getElementById("search").addEventListener("input", async (e) => {
+      const q = e.target.value.toLowerCase();
+      const res = await fetch(api);
+      let rows = await res.json();
+
+      if (q) {
+        rows = rows.filter(r => 
+          r.code.toLowerCase().includes(q) ||
+          r.url.toLowerCase().includes(q)
+        );
+      }
+
+      renderTable(rows);
+    });
+
+    fetchLinks();
+  </script>
+</body>
+</html>

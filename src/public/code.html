@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TinyLink — Stats</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .card {
+      padding: 20px;
+      border-radius: 10px;
+      border: 1px solid #ddd;
+      margin-top: 20px;
+      background: #fafafa;
+    }
+  </style>
+</head>
+
+<body>
+  <a href="/">← Back to Dashboard</a>
+  <h1 id="title">Loading…</h1>
+
+  <div id="details" class="card"></div>
+
+  <script>
+    const code = window.location.pathname.split("/").pop();
+
+    async function loadStats() {
+      const res = await fetch("/api/links/" + code);
+
+      if (res.status === 404) {
+        document.getElementById("title").textContent = "Not Found";
+        document.getElementById("details").innerHTML = "No link with this code exists.";
+        return;
+      }
+
+      const data = await res.json();
+      document.getElementById("title").textContent = "Stats for: " + data.code;
+
+      document.getElementById("details").innerHTML = `
+        <p><strong>Original URL:</strong> <a href="${data.url}" target="_blank">${data.url}</a></p>
+        <p><strong>Total Clicks:</strong> ${data.clicks}</p>
+        <p><strong>Last Clicked:</strong> ${data.last_clicked ? new Date(data.last_clicked).toLocaleString() : "-"}</p>
+        <p><strong>Created At:</strong> ${new Date(data.created_at).toLocaleString()}</p>
+      `;
+    }
+
+    loadStats();
+  </script>
+</body>
+</html>
